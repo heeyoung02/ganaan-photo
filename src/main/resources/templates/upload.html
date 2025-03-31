@@ -9,7 +9,7 @@
 
 <div class="alert alert-info" th:if="${message}" th:text="${message}"></div>
 
-<form th:action="@{/upload}" method="post" enctype="multipart/form-data">
+<form th:action="@{/save}" method="post" enctype="multipart/form-data">
   <div class="mb-3">
     <label for="fileInput" class="form-label">파일 선택 (최대 10개, 5MB 이하)</label>
     <input type="file" class="form-control" id="fileInput" name="files" multiple required>
