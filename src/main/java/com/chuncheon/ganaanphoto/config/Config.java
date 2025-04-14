@@ -16,7 +16,6 @@ public class Config {
         Config.env = env; // Environment를 정적 필드에 주입
     }
 
-    // @PostConstruct로 초기화 메서드 설정
     @PostConstruct
     public void init() {
         // 초기화 작업 (필요시 추가 설정)

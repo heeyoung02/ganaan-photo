@@ -1,12 +1,68 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://thymeleaf.org">
 <head>
   <meta charset="UTF-8">
-  <title>Title</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" th:href="@{/css/style.css}">
+  <title>파일 목록</title>
 </head>
 <body>
+<h1>업로드된 파일 목록</h1>
 
-<h1>View</h1>
+<!-- ✅ 3x3 배열로 정렬 -->
+<div class="container">
+  <div class="row row-cols-3 g-3">
+    <div class="col" th:each="fileName : ${fileList}">
+      <div class="card p-2">
+        <!-- 이미지 표시 -->
+        <img th:src="@{/rest/photo/{fileName}(fileName=${fileName})}" alt="Uploaded Image" class="img-fluid" style="max-height: 150px; object-fit: cover;">
+        <!-- 삭제 버튼 -->
+        <button th:attr="onclick=|deleteFile('${fileName}')|">삭제</button>
+        <!--        <button th:attr="onclick='deleteFile(\'${fileName}\')'">삭제</button>-->
 
+
+
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<button onclick="startSlideShow()">슬라이드쇼 시작</button>
+
+<script>
+  // 슬라이드쇼 시작 버튼 클릭 시
+  function startSlideShow() {
+    const win = window.open("/slideShow", "_blank",
+            "width=100,height=100,scrollbars=no,resizable=no");
+
+    // 창이 열린 후 크기 조정 (약간의 지연 추가)
+    setTimeout(() => {
+      win.resizeTo(screen.width, screen.height);
+    }, 100);
+  }
+
+  // 파일 삭제 함수
+  function deleteFile(fileName) {
+    if (confirm("정말로 삭제하시겠습니까?")) {
+      // Ajax를 사용하여 서버에 요청을 보낼 수 있습니다.
+      fetch('/rest/photo/deleteFile/' + fileName, {
+        method: 'DELETE',
+      })
+              .then(response => {
+                if (response.ok) {
+                  alert("파일이 삭제되었습니다.");
+                  location.reload(); // 페이지를 새로고침하여 삭제된 파일을 반영
+                } else {
+                  alert("파일 삭제 실패.");
+                }
+              })
+              .catch(error => {
+                console.error('삭제 중 오류가 발생했습니다:', error);
+              });
+    }
+  }
+</script>
 </body>
 </html>
