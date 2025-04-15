@@ -1,6 +1,7 @@
 package com.chuncheon.ganaanphoto.service;
 
 import com.chuncheon.ganaanphoto.config.Config;
+import com.chuncheon.ganaanphoto.dto.FileUploadDTO;
 import com.chuncheon.ganaanphoto.entity.FileUploadEntity;
 import com.chuncheon.ganaanphoto.repository.FileUploadRepository;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,11 @@ public class FileUploadService {
 
     private final FileUploadRepository fileUploadRepository;
 
-    //  * 여러 파일을 서버에 저장하고 DB에 파일 정보를 저장하는 메서드
+    /**
+     * 파일 업로드 및 DB 저장
+     * @param files
+     * @throws IOException
+     */
     public void saveFiles(List<MultipartFile> files) throws IOException {
         String uploadDir = Config.getProperty("file.upload-dir"); // 업로드 경로
         if (uploadDir == null || uploadDir.isBlank()) {
@@ -51,13 +56,21 @@ public class FileUploadService {
             }
         }
     }
-  //파일 이름에서 확장자를 추출하는 메서드
+
+    /**
+     * 확장자 가져오기
+     * @param filename
+     * @return
+     */
     private String getFileExtension(String filename) {
         int dotIndex = filename.lastIndexOf('.');
         return (dotIndex != -1) ? filename.substring(dotIndex + 1) : "";
     }
 
-    //DB에서 최신순으로 가져오는 메서드 추가
+    /**
+     * 최신순으로 저장된 파일 이름 list 가져오기
+     * @return
+     */
     public List<String> getSavedFileNamesFromDB() {
         return fileUploadRepository.findAllByOrderByIdDesc()
             .stream()
@@ -65,7 +78,19 @@ public class FileUploadService {
             .collect(Collectors.toList());
     }
 
-    //파일 이름으로 DB에서 파일을 찾아 삭제하는 메서드
+    /**
+     * 최신순으로 저장된 file upload dto list 가져오기
+     * @return
+     */
+    public List<FileUploadDTO> getUploadFileDTOFromDB() {
+        return fileUploadRepository.findAllByOrderByIdDesc().stream().map(FileUploadEntity::fromEntity).collect(Collectors.toList());
+    }
+
+    /**
+     * 파일 이름으로 데이터 삭제
+     * @param savedName
+     * @return
+     */
     public boolean deleteFileByFileName(String savedName) {
         System.out.println("삭제 시도 파일명: " + savedName);  // ✅ 로그로 확인
         Optional<FileUploadEntity> fileOpt = fileUploadRepository.findBySavedName(savedName);
