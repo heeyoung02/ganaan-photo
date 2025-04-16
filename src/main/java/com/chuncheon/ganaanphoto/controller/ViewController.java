@@ -1,5 +1,6 @@
 package com.chuncheon.ganaanphoto.controller;
 
+import com.chuncheon.ganaanphoto.dto.FileUploadDTO;
 import com.chuncheon.ganaanphoto.service.FileUploadService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
@@ -23,11 +24,10 @@ public class ViewController {
 	@Autowired
 	private FileUploadService fileUploadService;  // 파일 업로드 서비스
 
-
 	@GetMapping("/view")
 	public String showViewPage(Model model) {
-		List<String> fileNames = fileUploadService.getSavedFileNamesFromDB(); // DB에서 최신순으로 가져옴
-		model.addAttribute("fileList", fileNames);
+		List<FileUploadDTO> fileUploadDTOList = fileUploadService.getUploadFileDTOFromDB();
+		model.addAttribute("fileUploadDTOList", fileUploadDTOList);
 		return "view";  // view.html 렌더링
 	}
 

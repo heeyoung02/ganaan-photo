@@ -35,16 +35,20 @@
 <!-- ✅ 3x3 배열로 정렬 -->
 <div class="container" >
   <div class="row row-cols-3 g-3" id="fileContainer">
-    <div class="col" th:each="fileName : ${fileList}">
-      <div class="card p-2 d-flex flex-column check-area" >
-          <!-- 체크박스 -->
+
+    <div class="col" th:each="dto : ${fileUploadDTOList}">
+      <div class="card p-2 d-flex flex-column check-area">
+        <!-- 체크박스 -->
+
         <div class="form-check">
-          <input class="form-check-input file-checkbox" type="checkbox" th:value="${fileName}">
+          <input class="form-check-input file-checkbox" type="checkbox" th:value="${dto.savedName}">
         </div>
         <!-- 이미지 -->
-        <img th:src="@{/rest/photo/{fileName}(fileName=${fileName})}" alt="Uploaded Image" class="img-fluid"  >
+
+        <img th:src="@{${'/rest/photo/' + dto.savedName}}" alt="Uploaded Image" class="img-fluid" >
         <!-- 개별 삭제 -->
-        <button class="btn btn-outline-danger btn-sm mt-auto" th:attr="onclick=|deleteFile('${fileName}')|">삭제</button>
+        <button class="btn btn-outline-danger btn-sm mt-auto" th:attr="onclick=|deleteFile('${dto.savedName}')|">삭제</button>
+
       </div>
     </div>
   </div>
