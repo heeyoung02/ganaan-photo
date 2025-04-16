@@ -11,32 +11,44 @@
 <h1>업로드된 파일 목록</h1>
 
 <div class="container mb-3">
-  <div class="d-flex justify-content-between align-items-center">
-    <div>
-      <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)"> 전체 선택
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+    <div class="form-check fs-5">
+      <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)" style="transform: scale(1.5); margin-right: 8px;"> 전체 선택
     </div>
-    <div>
-      <button class="btn btn-danger btn-sm" onclick="deleteSelectedFiles()">선택 삭제</button>
-<!-- 전체삭제(위험해서주석처리함)
-     <button class="btn btn-danger btn-sm ms-2" onclick="deleteAllFiles()">전체 삭제</button>-->
+    <!-- 선택삭제 버튼과 선택 개수 표시 -->
+    <div class="d-flex align-items-center ms-auto" style="gap: 20px;">
+           <span id="selectedCount" class="fs-5">0개 선택됨</span>
     </div>
+
+    <!--    선택삭제-->
+    <div>
+    <button class="btn btn-danger btn-sm" onclick="deleteSelectedFiles()">선택 삭제</button>
+    </div>
+
+     <!-- 전체삭제(위험해서주석처리함)
+      <div>
+     <button class="btn btn-danger btn-sm ms-2" onclick="deleteAllFiles()">전체 삭제</button>
+      </div>-->
   </div>
 </div>
 
 <!-- ✅ 3x3 배열로 정렬 -->
-<div class="container">
+<div class="container" >
   <div class="row row-cols-3 g-3" id="fileContainer">
 
     <div class="col" th:each="dto : ${fileUploadDTOList}">
-      <div class="card p-2">
+      <div class="card p-2 d-flex flex-column check-area">
         <!-- 체크박스 -->
+
         <div class="form-check">
           <input class="form-check-input file-checkbox" type="checkbox" th:value="${dto.savedName}">
         </div>
         <!-- 이미지 -->
-                <img th:src="@{${'/rest/photo/' + dto.savedName}}" alt="Uploaded Image" class="img-fluid" style="max-height: 150px; object-fit: cover;">
+
+        <img th:src="@{${'/rest/photo/' + dto.savedName}}" alt="Uploaded Image" class="img-fluid" >
         <!-- 개별 삭제 -->
-        <button class="btn btn-outline-danger btn-sm mt-2" th:attr="onclick=|deleteFile('${dto.savedName}')|">삭제</button>
+        <button class="btn btn-outline-danger btn-sm mt-auto" th:attr="onclick=|deleteFile('${dto.savedName}')|">삭제</button>
+
       </div>
     </div>
   </div>
@@ -125,6 +137,38 @@
   //   deleteSelectedFiles(); // 기존 선택 삭제 함수 재사용
   // }
 
+  function toggleCheckbox(fileName) {
+    const checkbox = document.getElementById(`checkbox-${fileName}`);
+    checkbox.checked = !checkbox.checked; // 이미지 클릭 시 체크박스 상태를 토글
+  }
+
+
+  document.addEventListener("DOMContentLoaded", function () {
+    const checkAreas = document.querySelectorAll(".check-area");
+
+    // 카드 클릭 시 체크 토글
+    checkAreas.forEach(area => {
+      area.addEventListener("click", function (e) {
+        if (e.target.tagName === "BUTTON" || e.target.classList.contains("file-checkbox")) return;
+
+        const checkbox = area.querySelector(".file-checkbox");
+        checkbox.checked = !checkbox.checked;
+        area.classList.toggle("checked", checkbox.checked);
+        updateSelectedCount();
+      });
+    });
+
+    // 체크박스 직접 클릭할 때도 갱신
+    const checkboxes = document.querySelectorAll(".file-checkbox");
+    checkboxes.forEach(cb => {
+      cb.addEventListener("click", updateSelectedCount);
+    });
+
+    function updateSelectedCount() {
+      const selected = document.querySelectorAll(".file-checkbox:checked").length;
+      document.getElementById("selectedCount").innerText = `${selected}개 선택됨`;
+    }
+  });
 </script>
 </body>
 </html>

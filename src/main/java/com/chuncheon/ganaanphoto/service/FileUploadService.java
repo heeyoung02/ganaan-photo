@@ -7,6 +7,7 @@ import com.chuncheon.ganaanphoto.repository.FileUploadRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.File;
 import java.io.IOException;
@@ -152,4 +153,17 @@ public class FileUploadService {
 //            return false;
 //        }
 //    }
+
+    // DB에서 저장된 파일 이름을 가져오는 메서드
+    public List<String> getImageList() {
+        return fileUploadRepository.findAllByOrderByIdDesc()
+                .stream()
+                .map(FileUploadEntity::getSavedName)
+                .collect(Collectors.toList());
+    }
+
+    // 이미지 파일 여부를 확인하는 메서드
+    private boolean isImageFile(String fileName) {
+        return fileName.endsWith(".jpg") || fileName.endsWith(".jpeg") || fileName.endsWith(".png") || fileName.endsWith(".gif");
+    }
 }

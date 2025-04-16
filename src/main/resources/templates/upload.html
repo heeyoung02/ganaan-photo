@@ -48,19 +48,20 @@
 
 <script>
 
-
+  let updatedFiles = []; // ✅ 전역 변수로 변경
   const overlay = document.getElementById("uploadOverlay");
+
   document.getElementById("uploadForm").addEventListener("submit", function (e) {
     e.preventDefault(); // 기본 form 제출 막기
-
     overlay.style.display = "flex"; // ✅ 업로드 시작할 때 오버레이 보이기
-
     const formData = new FormData();
-    const files = document.getElementById("fileInput").files;
-
-    for (let i = 0; i < files.length; i++) {
-      formData.append("files", files[i]); // name="files"와 매칭
-    }
+    // const files = document.getElementById("fileInput").files;
+    // for (let i = 0; i < files.length; i++) {
+    //   formData.append("files", files[i]); // name="files"와 매칭
+    // }
+    updatedFiles.forEach(file => {
+      formData.append("files", file);
+    });
     fetch("/save", {
       method: "POST",
       body: formData
@@ -71,8 +72,14 @@
               document.getElementById("uploadResult").innerHTML = `
         <div class="alert alert-success">${message}</div>
       `;
+              // ✅ 업로드 성공 후 UI 초기화
+              updatedFiles = []; // 파일 배열 초기화
+              document.getElementById("preview").innerHTML = ""; // 미리보기 삭제
+              document.getElementById("fileInput").value = ""; // 파일 input 초기화
+              document.getElementById("fileCount").textContent = ""; // 파일 수 초기화
             })
             .catch(err => {
+              overlay.style.display = "none";
               document.getElementById("uploadResult").innerHTML = `
         <div class="alert alert-danger">업로드 실패: ${err.message}</div>
       `;
@@ -81,20 +88,35 @@
 
   document.getElementById("fileInput").addEventListener("change", function(event) {
     let preview = document.getElementById("preview");
-    preview.innerHTML = ""; // 기존 미리보기 초기화
-    let files = Array.from(event.target.files); // 선택한 파일 목록을 배열로 변환
+    const files = Array.from(event.target.files); // 새로 선택한 파일들
+    // preview.innerHTML = ""; // 기존 미리보기 초기화
+    // let files = Array.from(event.target.files); // 선택한 파일 목록을 배열로 변환
+    //
+    // if (files.length > 10) {
+    //   alert("최대 10개의 파일만 선택할 수 있습니다.");
+    //   event.target.value = ""; // 선택 초기화
+    //   return;
+    // }
+   // let updatedFiles = [...files]; // 실제 업로드할 파일 배열 (삭제 반영)
 
-    if (files.length > 10) {
+    // 🔴 갯수 검사 → 기존 updatedFiles 길이 + 새로 선택한 파일 수 검사로 바꿔야 함
+    if (updatedFiles.length + files.length > 10) {
       alert("최대 10개의 파일만 선택할 수 있습니다.");
-      event.target.value = ""; // 선택 초기화
+      event.target.value = "";
       return;
     }
+    // files.forEach((file, index) => {
+    //   if (!file.type.startsWith("image/")) return; // 이미지 파일만 미리보기
 
-    let updatedFiles = [...files]; // 실제 업로드할 파일 배열 (삭제 반영)
+    // ✅ 새 파일들을 updatedFiles에 누적 (중복 방지도 추가)
+    files.forEach(file => {
+      if (!file.type.startsWith("image/")) return;
 
-    files.forEach((file, index) => {
-      if (!file.type.startsWith("image/")) return; // 이미지 파일만 미리보기
+      if (updatedFiles.some(f => f.name === file.name && f.size === file.size)) return; // 중복 방지
 
+      updatedFiles.push(file); // 누적
+
+      // 🟢 미리보기 생성
       let reader = new FileReader();
       reader.onload = function(e) {
         // 개별 이미지 컨테이너 생성
@@ -142,6 +164,8 @@
       };
       reader.readAsDataURL(file);
     });
+    updateFileList(updatedFiles); // 🟢 input 요소와 카운트 갱신
+  });
 
     // 파일갯수로 노출하기
     function updateFileCountDisplay(files) {
@@ -156,10 +180,7 @@
       updateFileCountDisplay(files); //
     }
 
-    updateFileList(updatedFiles); // 초기 파일 목록 저장
 
-
-  });
 
 
 </script>
