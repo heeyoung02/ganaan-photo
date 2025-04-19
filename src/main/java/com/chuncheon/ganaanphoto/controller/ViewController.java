@@ -1,5 +1,6 @@
 package com.chuncheon.ganaanphoto.controller;
 
+import com.chuncheon.ganaanphoto.config.Config;
 import com.chuncheon.ganaanphoto.dto.FileUploadDTO;
 import com.chuncheon.ganaanphoto.service.FileUploadService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,11 +32,22 @@ public class ViewController {
 		return "view";  // view.html 렌더링
 	}
 
-	// 이미지 파일을 반환하는 메서드
+	@GetMapping("/slideShow")
+	public String showSlideShow(Model model) {
+		List<String> fileNames = fileUploadService.getSavedFileNamesFromDB();  // DB에서 최신순 파일 이름 가져오기
+		model.addAttribute("fileList", fileNames);
+		return "sseSlideShow";
+	}
+
+	/**
+	 * 이미지 파일 반환
+	 * @param fileName
+	 * @return
+	 */
 	@GetMapping("/photo/{fileName}")
 	public ResponseEntity<Resource> getImage(@PathVariable String fileName) {
 		// DB에 저장된 경로를 기반으로 파일 생성
-		String uploadDir = "D:/upload/ganaan-photo/"; // 또는 Config.getProperty("file.upload-dir");
+		String uploadDir = Config.getProperty("file.upload-dir");
 		File file = new File(uploadDir + fileName);
 
 		if (file.exists()) {

@@ -1,9 +1,10 @@
 package com.chuncheon.ganaanphoto.config;
 
-import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+
+import jakarta.annotation.PostConstruct;
 
 @Configuration
 public class Config {
@@ -31,6 +32,17 @@ public class Config {
             return Integer.parseInt(env.getProperty(key));
         } catch (NumberFormatException | NullPointerException e) {
             return defaultVal;
+        }
+    }
+
+    /**
+     * 확장자 허용 체크 여부
+     */
+    public static boolean checkAllowImg(String ext) throws Exception {
+        if (getProperty("file.upload.img.allowed-extensions").contains(ext)) {
+            return true;
+        } else {
+            return false;
         }
     }
 

@@ -1,26 +1,77 @@
 package com.chuncheon.ganaanphoto.service;
 
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URLEncoder;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.stream.Collectors;
+
+import javax.imageio.ImageIO;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.chuncheon.ganaanphoto.config.Config;
+import com.chuncheon.ganaanphoto.controller.SseController;
 import com.chuncheon.ganaanphoto.dto.FileUploadDTO;
 import com.chuncheon.ganaanphoto.entity.FileUploadEntity;
 import com.chuncheon.ganaanphoto.repository.FileUploadRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import com.chuncheon.ganaanphoto.utils.InMemoryMultipartFile;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.*;
-import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class FileUploadService {
 
+    private static final Logger log = LoggerFactory.getLogger(FileUploadService.class);
     private final FileUploadRepository fileUploadRepository;
+    private final SseController sseController;
+
+    /**
+     * 업로드 파일 처리(검증)
+     * @param files
+     * @throws Exception
+     */
+    public void processUploadFiles(List<MultipartFile> files) throws Exception {
+        int maxCount = Config.getProperty("file.max-count", 10);
+        long defaultAllowSize = Config.getProperty("file.default-allow-size", 1048576);
+        long maxSize = Config.getProperty("file.max-size", 5) * defaultAllowSize;
+
+        // 갯수 check
+        if (files.size() > maxCount) {
+            throw new IllegalArgumentException("최대 " + maxCount + "개의 파일만 업로드 가능합니다.");
+        }
+
+        List<MultipartFile> processedFiles = new ArrayList<>();
+        for (MultipartFile file : files) {
+            String originalName = file.getOriginalFilename();
+            String extension = getFileExtension(originalName);
+            // 확장자 check
+            if (!Config.checkAllowImg(extension)) {
+                throw new IllegalArgumentException("허용되지 않는 파일 형식입니다: " + extension);
+            }
+            // 리사이즈 및 크기 check
+            MultipartFile resizedFile = resizeImage(file, 2560);
+            if (resizedFile.getSize() > maxSize) {
+                throw new IllegalArgumentException("파일 크기는 " + maxSize / 1048576 + "MB를 초과할 수 없습니다.");
+            }
+            processedFiles.add(resizedFile);
+        }
+        // 저장
+        saveFiles(processedFiles);
+    }
 
     /**
      * 파일 업로드 및 DB 저장
@@ -54,18 +105,12 @@ public class FileUploadService {
                     .build();
 
                 fileUploadRepository.save(entity);
+
+                // SSE 전송
+                String imageUrl = "/rest/photo/" + URLEncoder.encode(savedName, "UTF-8").replaceAll("\\+", "%20");
+                sseController.broadcastNewImage(imageUrl);
             }
         }
-    }
-
-    /**
-     * 확장자 가져오기
-     * @param filename
-     * @return
-     */
-    private String getFileExtension(String filename) {
-        int dotIndex = filename.lastIndexOf('.');
-        return (dotIndex != -1) ? filename.substring(dotIndex + 1) : "";
     }
 
     /**
@@ -93,35 +138,22 @@ public class FileUploadService {
      * @return
      */
     public boolean deleteFileByFileName(String savedName) {
-        System.out.println("삭제 시도 파일명: " + savedName);  // ✅ 로그로 확인
         Optional<FileUploadEntity> fileOpt = fileUploadRepository.findBySavedName(savedName);
 
         if (fileOpt.isPresent()) {
-            System.out.println("삭제 대상 있음. 삭제 진행.");  // ✅ 로그
             fileUploadRepository.delete(fileOpt.get());
             return true;
         } else {
-            System.out.println("삭제 대상 없음.");  // ✅ 로그
+            log.error("[삭제 대상 없음] file name : " + savedName);
             return false;
         }
     }
 
-    //    // 파일 목록을 생성 시간 기준으로 정렬
-    //    public List<File> getFilesSortedByCreationTime() {
-    //        File directory = new File(Config.getProperty("file.upload-dir"));
-    //        File[] files = directory.listFiles();
-    //
-    //        if (files == null) {
-    //            return Collections.emptyList();
-    //        }
-    //
-    //        // 파일 생성 시간 기준으로 정렬
-    //        return Arrays.stream(files)
-    //                .sorted((file1, file2) -> Long.compare(file2.lastModified(), file1.lastModified())) // 내림차순 정렬
-    //                .collect(Collectors.toList());
-    //    }
-
-    //여러 파일을 저장된 이름을 기준으로 삭제하는 메서드
+    /**
+     * 여러 파일을 저장된 이름을 기준으로 삭제하는 메서드
+     * @param savedNames
+     * @return
+     */
     public boolean deleteFilesByFileNames(List<String> savedNames) {
         try {
             // 여러 파일을 삭제하는 로직
@@ -135,35 +167,69 @@ public class FileUploadService {
             fileUploadRepository.deleteAll(filesToDelete);
             return true;
         } catch (Exception e) {
+            log.error("[file 삭제실패] " + e.getMessage());
             return false;
         }
     }
 
     // 모든 파일을 삭제하는 메서드 (위험해서 주석처리함)
-//    public boolean deleteAllFiles() {
-//        try {
-//            List<FileUploadEntity> allFiles = fileUploadRepository.findAll(); // 모든 파일 가져오기
-//            if (allFiles.isEmpty()) {
-//                return false;
-//            }
-//
-//            fileUploadRepository.deleteAll(allFiles); // 모든 파일 삭제
-//            return true;
-//        } catch (Exception e) {
-//            return false;
-//        }
-//    }
+    //    public boolean deleteAllFiles() {
+    //        try {
+    //            List<FileUploadEntity> allFiles = fileUploadRepository.findAll(); // 모든 파일 가져오기
+    //            if (allFiles.isEmpty()) {
+    //                return false;
+    //            }
+    //
+    //            fileUploadRepository.deleteAll(allFiles); // 모든 파일 삭제
+    //            return true;
+    //        } catch (Exception e) {
+    //            return false;
+    //        }
+    //    }
 
-    // DB에서 저장된 파일 이름을 가져오는 메서드
-    public List<String> getImageList() {
-        return fileUploadRepository.findAllByOrderByIdDesc()
-                .stream()
-                .map(FileUploadEntity::getSavedName)
-                .collect(Collectors.toList());
+    /**
+     * 이미지 리사이징
+     * @param originalFile
+     * @param targetWidth
+     * @return
+     * @throws IOException
+     */
+    public MultipartFile resizeImage(MultipartFile originalFile, int targetWidth) throws IOException {
+        InputStream input = originalFile.getInputStream();
+        BufferedImage originalImage = ImageIO.read(input);
+
+        // 기존 이미지 크기 가져오기
+        int width = originalImage.getWidth();
+        int height = originalImage.getHeight();
+
+        // 리사이징할 크기 계산
+        double scale = (double) targetWidth / width;
+        int newWidth = targetWidth;
+        int newHeight = (int) (height * scale);
+
+        // 새 BufferedImage 생성
+        BufferedImage resizedImage = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = resizedImage.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        g2d.drawImage(originalImage, 0, 0, newWidth, newHeight, null);
+        g2d.dispose();
+
+        // 압축하여 ByteArrayOutputStream에 저장
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(resizedImage, "jpg", baos);
+        byte[] compressedBytes = baos.toByteArray();
+
+        // MultipartFile로 변환
+        return new InMemoryMultipartFile(originalFile.getName(), originalFile.getOriginalFilename(), "image/jpeg", compressedBytes);
     }
 
-    // 이미지 파일 여부를 확인하는 메서드
-    private boolean isImageFile(String fileName) {
-        return fileName.endsWith(".jpg") || fileName.endsWith(".jpeg") || fileName.endsWith(".png") || fileName.endsWith(".gif");
+    /**
+     * 확장자 가져오기
+     * @param filename
+     * @return
+     */
+    private String getFileExtension(String filename) {
+        int dotIndex = filename.lastIndexOf('.');
+        return (dotIndex != -1) ? filename.substring(dotIndex + 1) : "";
     }
 }

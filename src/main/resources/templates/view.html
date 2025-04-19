@@ -57,62 +57,56 @@
 <button onclick="startSlideShow()">슬라이드쇼 시작</button>
 
 <script>
-  // 슬라이드쇼 시작 버튼 클릭 시
-  function startSlideShow() {
-    const win = window.open("/slideShow", "_blank",
-            "width=100,height=100,scrollbars=no,resizable=no");
 
-    // 창이 열린 후 크기 조정 (약간의 지연 추가)
-    setTimeout(() => {
-      win.resizeTo(screen.width, screen.height);
-    }, 100);
+  // 슬라이드쇼 팝업 열기
+  function startSlideShow() {
+    const win = window.open("/slideShow", "_blank", "width=100,height=100,scrollbars=no,resizable=no");
+    setTimeout(() => win.resizeTo(screen.width, screen.height), 100);
   }
 
-  // 개별 삭제
+  // 파일 삭제 요청
   function deleteFile(fileName) {
-    if (confirm("정말로 삭제하시겠습니까?")) {
-      fetch('/rest/photo/deleteFile/' + fileName, {
-        method: 'DELETE',
-      })
-              .then(response => {
-                if (response.ok) {
-                  alert("파일이 삭제되었습니다.");
-                  location.reload();
-                } else {
-                  alert("파일 삭제 실패.");
-                }
-              })
-              .catch(error => {
-                console.error('삭제 중 오류가 발생했습니다:', error);
-              });
-    }
+    if (!confirm("정말로 삭제하시겠습니까?")) return;
+
+    fetch(`/rest/photo/deleteFile/${fileName}`, { method: 'DELETE' })
+            .then(res => {
+              if (res.ok) {
+                alert("파일이 삭제되었습니다.");
+                location.reload();
+              } else {
+                alert("파일 삭제 실패.");
+              }
+            })
+            .catch(err => {
+              console.error('삭제 중 오류:', err);
+            });
   }
 
   // 전체 선택/해제
-  function toggleSelectAll(checkbox) {
-    const checkboxes = document.querySelectorAll('.file-checkbox');
-    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+  function toggleSelectAll(masterCheckbox) {
+    document.querySelectorAll('.file-checkbox').forEach(cb => {
+      cb.checked = masterCheckbox.checked;
+    });
+    updateSelectedCount();
   }
 
-  // 선택된 파일들 삭제
+  // 선택된 파일 삭제
   function deleteSelectedFiles() {
-    const selected = document.querySelectorAll('.file-checkbox:checked');
-    if (selected.length === 0) {
+    const selectedCheckboxes = document.querySelectorAll('.file-checkbox:checked');
+    if (selectedCheckboxes.length === 0) {
       alert("삭제할 파일을 선택하세요.");
       return;
     }
 
     if (!confirm("선택된 파일을 삭제하시겠습니까?")) return;
 
-    const fileNames = Array.from(selected).map(cb => cb.value);
+    const fileNames = Array.from(selectedCheckboxes).map(cb => cb.value);
     let deletedCount = 0;
 
     fileNames.forEach(fileName => {
-      fetch('/rest/photo/deleteFile/' + fileName, {
-        method: 'DELETE',
-      })
-              .then(response => {
-                if (response.ok) {
+      fetch(`/rest/photo/deleteFile/${fileName}`, { method: 'DELETE' })
+              .then(res => {
+                if (res.ok) {
                   deletedCount++;
                   if (deletedCount === fileNames.length) {
                     alert("선택한 파일이 삭제되었습니다.");
@@ -122,33 +116,33 @@
                   alert("일부 파일 삭제 실패.");
                 }
               })
-              .catch(error => {
-                console.error('삭제 중 오류 발생:', error);
+              .catch(err => {
+                console.error("삭제 중 오류:", err);
               });
     });
   }
-  // 전체 삭제 함수 (위험해서 주석처리함)
-  // function deleteAllFiles() {
-  //   if (!confirm("정말로 모든 파일을 삭제하시겠습니까?")) return;
-  //
-  //   // 전체 체크박스 선택해서 모두 삭제
-  //   const checkboxes = document.querySelectorAll('.file-checkbox');
-  //   checkboxes.forEach(cb => cb.checked = true); // 전체 체크
-  //   deleteSelectedFiles(); // 기존 선택 삭제 함수 재사용
-  // }
 
-  function toggleCheckbox(fileName) {
+  // 카드 클릭 시 체크박스 토글
+  function toggleCheckboxByImage(fileName) {
     const checkbox = document.getElementById(`checkbox-${fileName}`);
-    checkbox.checked = !checkbox.checked; // 이미지 클릭 시 체크박스 상태를 토글
+    checkbox.checked = !checkbox.checked;
+    updateSelectedCount();
   }
 
+  // 체크된 파일 수 표시
+  function updateSelectedCount() {
+    const count = document.querySelectorAll(".file-checkbox:checked").length;
+    document.getElementById("selectedCount").innerText = `${count}개 선택됨`;
+  }
 
-  document.addEventListener("DOMContentLoaded", function () {
+  // DOM 로드 후 이벤트 바인딩
+  document.addEventListener("DOMContentLoaded", () => {
     const checkAreas = document.querySelectorAll(".check-area");
+    const checkboxes = document.querySelectorAll(".file-checkbox");
 
-    // 카드 클릭 시 체크 토글
+    // 카드 클릭 → 체크 토글
     checkAreas.forEach(area => {
-      area.addEventListener("click", function (e) {
+      area.addEventListener("click", e => {
         if (e.target.tagName === "BUTTON" || e.target.classList.contains("file-checkbox")) return;
 
         const checkbox = area.querySelector(".file-checkbox");
@@ -158,17 +152,11 @@
       });
     });
 
-    // 체크박스 직접 클릭할 때도 갱신
-    const checkboxes = document.querySelectorAll(".file-checkbox");
-    checkboxes.forEach(cb => {
-      cb.addEventListener("click", updateSelectedCount);
-    });
-
-    function updateSelectedCount() {
-      const selected = document.querySelectorAll(".file-checkbox:checked").length;
-      document.getElementById("selectedCount").innerText = `${selected}개 선택됨`;
-    }
+    // 체크박스 직접 클릭 시도 반영
+    checkboxes.forEach(cb => cb.addEventListener("click", updateSelectedCount));
   });
+
+
 </script>
 </body>
 </html>

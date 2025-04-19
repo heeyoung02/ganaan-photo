@@ -8,6 +8,9 @@ import java.io.InputStream;
 
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * 바이트 배열로 존재하는 파일 데이터를 MultipartFile 인터페이스처럼 다룰 수 있도록 래핑해주는 클래스
+ */
 public class InMemoryMultipartFile implements MultipartFile {
     private final String name;
     private final String originalFilename;

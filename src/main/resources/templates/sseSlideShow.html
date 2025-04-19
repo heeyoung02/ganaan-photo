@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html xmlns:th="http://thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>슬라이드쇼</title>
+    <style>
+        /* 전체 화면을 사용하도록 설정 */
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden; /* 스크롤바를 숨기기 위해 */
+        }
+
+        .slide-container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            background-color: black; /* 배경 색을 검은색으로 */
+        }
+        .slide {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;  /* 이미지가 화면에 맞게 비율을 유지하면서 맞춰짐 */
+            opacity: 0;  /* 처음에는 이미지가 보이지 않도록 설정 */
+            transition: opacity 1s ease-in-out;  /* 부드럽게 페이드 인/아웃 애니메이션 */
+        }
+        .slide.visible {
+            opacity: 1;  /* visible 클래스가 추가되면 이미지를 보이도록 */
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="slide-container">
+    <img th:each="fileName : ${fileList}" th:src="@{'/rest/photo/' + ${fileName}}" class="slide" alt="Slide Image">
+</div>
+
+<script>
+    const slideContainer = document.querySelector('.slide-container');
+    let slides = [];
+    let currentIndex = 0;
+
+    // =========================
+    // 💡 슬라이드 관련 함수
+    // =========================
+    function updateSlides() {
+        slides = document.querySelectorAll('.slide');
+    }
+
+    function showSlide(index) {
+        slides.forEach(slide => slide.classList.remove('visible'));
+        currentIndex = (index + slides.length) % slides.length; // index 범위 보정
+        setTimeout(() => {
+            slides[currentIndex].classList.add('visible');
+        }, 100);
+    }
+
+    function nextSlide() {
+        showSlide(++currentIndex);
+    }
+
+    function prevSlide() {
+        showSlide(--currentIndex);
+    }
+
+    function startSlideInterval() {
+        setInterval(nextSlide, 3000);
+    }
+
+    // =========================
+    // 💡 SSE로 이미지 실시간 수신
+    // =========================
+    function initSSE() {
+        const eventSource = new EventSource('/sse/subscribe');
+        eventSource.addEventListener('imageUpdate', (event) => {
+            const imageUrl = event.data;
+            const newImg = document.createElement('img');
+            newImg.src = imageUrl;
+            newImg.className = 'slide';
+            slideContainer.appendChild(newImg);
+            updateSlides();
+        });
+    }
+
+    // =========================
+    // 💡 화면 사이즈 맞춤
+    // =========================
+    function resizeToFullScreen() {
+        slideContainer.style.width = `${window.innerWidth}px`;
+        slideContainer.style.height = `${window.innerHeight}px`;
+    }
+
+    window.addEventListener('resize', resizeToFullScreen);
+
+    // =========================
+    // 💡 전체화면 토글
+    // =========================
+    function toggleFullScreen() {
+        const doc = document;
+        const el = doc.documentElement;
+        if (!doc.fullscreenElement && !doc.webkitFullscreenElement &&
+            !doc.mozFullScreenElement && !doc.msFullscreenElement) {
+            (el.requestFullscreen || el.webkitRequestFullscreen || el.mozRequestFullScreen || el.msRequestFullscreen).call(el);
+        } else {
+            (doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen).call(doc);
+        }
+    }
+
+    // =========================
+    // 🔰 초기화
+    // =========================
+    document.addEventListener('DOMContentLoaded', () => {
+        updateSlides();
+        resizeToFullScreen();
+        showSlide(currentIndex);
+        startSlideInterval();
+        initSSE();
+    });
+
+</script>
+
+</body>
+</html>

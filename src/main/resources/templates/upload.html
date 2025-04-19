@@ -13,22 +13,10 @@
 
 <div class="alert alert-info" th:if="${message}" th:text="${message}"></div>
 
-
-<!--업로드 폼-->
-<!--<form th:action="@{/save}" method="post" enctype="multipart/form-data">-->
-<!--  <div class="mb-3">-->
-<!--    <label for="fileInput" class="form-label">파일 선택 (최대 10개, 5MB 이하)</label>-->
-<!--    <input type="file" class="form-control" id="fileInput" name="files" multiple required>-->
-<!--  </div>-->
-<!--  <button type="submit" class="btn btn-primary">업로드</button>-->
-  <!-- ✅ 이미지 미리보기 영역 -->
-<!--  <div id="preview" class="d-flex flex-wrap"></div>-->
-<!--</form>-->
-
 <form id="uploadForm" enctype="multipart/form-data">
   <div class="mb-3">
     <label for="fileInput" class="form-label">파일 선택 (최대 10개, 5MB 이하)</label>
-    <input type="file" class="form-control" id="fileInput" name="files" multiple required style="color: transparent;">
+    <input type="file" class="form-control" id="fileInput" name="files" accept="image/*" multiple required style="color: transparent;">
     <!-- 파일갯수 여기에 표기 -->
     <small id="fileCount" class="text-muted mt-1 d-block"></small>
   </div>
@@ -38,7 +26,8 @@
 </form>
 <!-- 여기에 fetch 결과 메시지를 표시 -->
 <div id="uploadResult" class="mt-3"></div>
-<a href="/view" class="btn btn-secondary mt-3">View로 가기</a>
+<!--<a href="/view" class="btn btn-secondary mt-3">View로 가기</a>-->
+<a href="/" class="btn btn-secondary mt-3">메인페이지</a>
 
 <!-- 업로드 중일 때 덮을 레이어 -->
 <div id="uploadOverlay">
@@ -48,140 +37,107 @@
 
 <script>
 
-  let updatedFiles = []; // ✅ 전역 변수로 변경
+  const updatedFiles = []; // 업로드할 파일 리스트
+  const uploadForm = document.getElementById("uploadForm");
+  const fileInput = document.getElementById("fileInput");
+  const preview = document.getElementById("preview");
   const overlay = document.getElementById("uploadOverlay");
+  const uploadResult = document.getElementById("uploadResult");
+  const fileCount = document.getElementById("fileCount");
+  const MAX_FILES = 10;
 
-  document.getElementById("uploadForm").addEventListener("submit", function (e) {
-    e.preventDefault(); // 기본 form 제출 막기
-    overlay.style.display = "flex"; // ✅ 업로드 시작할 때 오버레이 보이기
-    const formData = new FormData();
-    // const files = document.getElementById("fileInput").files;
-    // for (let i = 0; i < files.length; i++) {
-    //   formData.append("files", files[i]); // name="files"와 매칭
-    // }
-    updatedFiles.forEach(file => {
-      formData.append("files", file);
+  // 🔄 파일 목록 및 input 상태 동기화
+  function updateFileList() {
+    const dataTransfer = new DataTransfer();
+    updatedFiles.forEach(file => dataTransfer.items.add(file));
+    fileInput.files = dataTransfer.files;
+    fileCount.textContent = `선택된 파일: ${updatedFiles.length}개`;
+  }
+
+  // 🖼 미리보기 카드 생성
+  function createImagePreview(file, dataUrl) {
+    const div = document.createElement("div");
+    div.className = "position-relative m-2";
+    div.style.display = "inline-block";
+
+    const img = document.createElement("img");
+    img.src = dataUrl;
+    img.className = "img-thumbnail";
+    img.style.width = "150px";
+    img.style.height = "150px";
+
+    const btn = document.createElement("button");
+    btn.innerHTML = '<i class="bi bi-x-lg"></i>';
+    btn.className = "position-absolute";
+    Object.assign(btn.style, {
+      top: "5px", right: "5px", border: "none", background: "rgba(0,0,0,0.5)",
+      color: "white", padding: "4px", borderRadius: "50%", cursor: "pointer",
+      width: "28px", height: "28px", display: "flex", justifyContent: "center", alignItems: "center"
     });
+
+    btn.onclick = () => {
+      div.remove();
+      const idx = updatedFiles.findIndex(f => f.name === file.name && f.size === file.size);
+      if (idx > -1) updatedFiles.splice(idx, 1);
+      updateFileList();
+    };
+
+    div.appendChild(img);
+    div.appendChild(btn);
+    preview.appendChild(div);
+  }
+
+  // 📂 파일 선택 이벤트
+  fileInput.addEventListener("change", (event) => {
+    const newFiles = Array.from(event.target.files);
+
+    if (updatedFiles.length + newFiles.length > MAX_FILES) {
+      alert(`최대 ${MAX_FILES}개의 파일만 선택할 수 있습니다.`);
+      event.target.value = "";
+      return;
+    }
+
+    newFiles.forEach(file => {
+      if (!file.type.startsWith("image/")) return;
+      if (updatedFiles.some(f => f.name === file.name && f.size === file.size)) return;
+
+      updatedFiles.push(file);
+
+      const reader = new FileReader();
+      reader.onload = (e) => createImagePreview(file, e.target.result);
+      reader.readAsDataURL(file);
+    });
+    updateFileList();
+    uploadResult.innerHTML = ""; // 파일 업로드 성공 메세지 숨기기
+  });
+
+
+  // 🚀 폼 제출 이벤트
+  uploadForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    overlay.style.display = "flex";
+
+    const formData = new FormData();
+    updatedFiles.forEach(file => formData.append("files", file));
+
     fetch("/save", {
       method: "POST",
       body: formData
     })
             .then(res => res.text())
             .then(message => {
-              overlay.style.display = "none"; // ✅ 업로드 완료되면 오버레이 숨기기
-              document.getElementById("uploadResult").innerHTML = `
-        <div class="alert alert-success">${message}</div>
-      `;
-              // ✅ 업로드 성공 후 UI 초기화
-              updatedFiles = []; // 파일 배열 초기화
-              document.getElementById("preview").innerHTML = ""; // 미리보기 삭제
-              document.getElementById("fileInput").value = ""; // 파일 input 초기화
-              document.getElementById("fileCount").textContent = ""; // 파일 수 초기화
+              overlay.style.display = "none";
+              uploadResult.innerHTML = `<div class="alert alert-success">${message}</div>`;
+              updatedFiles.length = 0;
+              preview.innerHTML = "";
+              fileInput.value = "";
+              updateFileList();
             })
             .catch(err => {
               overlay.style.display = "none";
-              document.getElementById("uploadResult").innerHTML = `
-        <div class="alert alert-danger">업로드 실패: ${err.message}</div>
-      `;
+              uploadResult.innerHTML = `<div class="alert alert-danger">업로드 실패: ${err.message}</div>`;
             });
   });
-
-  document.getElementById("fileInput").addEventListener("change", function(event) {
-    let preview = document.getElementById("preview");
-    const files = Array.from(event.target.files); // 새로 선택한 파일들
-    // preview.innerHTML = ""; // 기존 미리보기 초기화
-    // let files = Array.from(event.target.files); // 선택한 파일 목록을 배열로 변환
-    //
-    // if (files.length > 10) {
-    //   alert("최대 10개의 파일만 선택할 수 있습니다.");
-    //   event.target.value = ""; // 선택 초기화
-    //   return;
-    // }
-   // let updatedFiles = [...files]; // 실제 업로드할 파일 배열 (삭제 반영)
-
-    // 🔴 갯수 검사 → 기존 updatedFiles 길이 + 새로 선택한 파일 수 검사로 바꿔야 함
-    if (updatedFiles.length + files.length > 10) {
-      alert("최대 10개의 파일만 선택할 수 있습니다.");
-      event.target.value = "";
-      return;
-    }
-    // files.forEach((file, index) => {
-    //   if (!file.type.startsWith("image/")) return; // 이미지 파일만 미리보기
-
-    // ✅ 새 파일들을 updatedFiles에 누적 (중복 방지도 추가)
-    files.forEach(file => {
-      if (!file.type.startsWith("image/")) return;
-
-      if (updatedFiles.some(f => f.name === file.name && f.size === file.size)) return; // 중복 방지
-
-      updatedFiles.push(file); // 누적
-
-      // 🟢 미리보기 생성
-      let reader = new FileReader();
-      reader.onload = function(e) {
-        // 개별 이미지 컨테이너 생성
-        let div = document.createElement("div");
-        div.classList.add("position-relative", "m-2");
-        div.style.display = "inline-block";
-
-        // 이미지 태그 생성
-        let img = document.createElement("img");
-        img.src = e.target.result;
-        img.classList.add("img-thumbnail");
-        img.style.width = "150px";
-        img.style.height = "150px";
-
-        // 삭제 버튼 생성 (❌ 아이콘 추가)
-        const btn = document.createElement("button");
-        btn.innerHTML = '<i class="bi bi-x-lg"></i>'; // Bootstrap 아이콘
-        btn.classList.add("position-absolute");
-        btn.style.top = "5px";
-        btn.style.right = "5px";
-        btn.style.border = "none";
-        btn.style.background = "rgba(0, 0, 0, 0.5)";
-        btn.style.color = "white";
-        btn.style.padding = "4px";
-        btn.style.borderRadius = "50%";
-        btn.style.cursor = "pointer";
-        btn.style.width = "28px";
-        btn.style.height = "28px";
-        btn.style.display = "flex";
-        btn.style.justifyContent = "center";
-        btn.style.alignItems = "center";
-
-
-        // 버튼 클릭 시 이미지 삭제 및 파일 목록에서 제거
-        btn.onclick = function() {
-          div.remove(); // 미리보기 삭제
-          updatedFiles = updatedFiles.filter(f => !(f.name === file.name && f.size === file.size));//파일 목록에서 삭제
-          updateFileList(updatedFiles); // input 값 업데이트
-        };
-
-        // 요소 조립
-        div.appendChild(img);
-        div.appendChild(btn);
-        preview.appendChild(div);
-      };
-      reader.readAsDataURL(file);
-    });
-    updateFileList(updatedFiles); // 🟢 input 요소와 카운트 갱신
-  });
-
-    // 파일갯수로 노출하기
-    function updateFileCountDisplay(files) {
-      const countDisplay = document.getElementById("fileCount");
-      countDisplay.textContent = `선택된 파일: ${files.length}개`;
-    }
-    // 파일 목록 업데이트 함수
-    function updateFileList(files) {
-      let dataTransfer = new DataTransfer();
-      files.forEach(file => dataTransfer.items.add(file));
-      document.getElementById("fileInput").files = dataTransfer.files; // input 값 갱신
-      updateFileCountDisplay(files); //
-    }
-
-
-
 
 </script>
 </body>

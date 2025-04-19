@@ -14,9 +14,14 @@ import org.springframework.web.bind.annotation.RestController;
 import com.chuncheon.ganaanphoto.config.Config;
 
 @RestController
-
 public class ViewRestController {
-    // 이미지 파일을 반환하는 API
+
+
+    /**
+     * 이미지 파일을 반환
+     * @param fileName
+     * @return
+     */
     @GetMapping("/rest/photo/{fileName}")
     public ResponseEntity<Resource> getFile(@PathVariable String fileName) {
         File file = new File(Config.getProperty("file.upload-dir") + "/" + fileName);
