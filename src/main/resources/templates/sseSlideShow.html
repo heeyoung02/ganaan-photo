@@ -88,6 +88,18 @@
             slideContainer.appendChild(newImg);
             updateSlides();
         });
+        // 연결 유지를 위한 ping 전송
+        eventSource.addEventListener("ping", (event) => {
+            const now = new Date();
+            console.log("💓 ping", now.toISOString());
+        });
+        // 브라우저에서 연결 끊길 경우 감지
+        eventSource.onerror = (e) => {
+            const now = new Date();
+            console.error("❌ SSE 연결 끊김!!  " + now.toISOString() + "재연결중..", e);
+            eventSource.close();
+            setTimeout(initSSE, 5000); // 5초 후 재연결 시도
+        };
     }
 
     // =========================

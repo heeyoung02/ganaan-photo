@@ -4,7 +4,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
@@ -16,11 +15,13 @@ import org.springframework.web.bind.annotation.RestController;
 import com.chuncheon.ganaanphoto.dto.FileUploadDTO;
 import com.chuncheon.ganaanphoto.service.FileUploadService;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
+@RequiredArgsConstructor
 public class FileRestController {
 
-    @Autowired
-    private FileUploadService fileUploadService;
+    private final FileUploadService fileUploadService;
 
     @PostMapping("/save")
     public ResponseEntity<String> uploadFiles(@ModelAttribute FileUploadDTO fileUploadDTO) {

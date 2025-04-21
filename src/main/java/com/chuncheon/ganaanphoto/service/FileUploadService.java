@@ -4,6 +4,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLEncoder;
@@ -23,7 +24,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.chuncheon.ganaanphoto.config.Config;
-import com.chuncheon.ganaanphoto.controller.SseController;
 import com.chuncheon.ganaanphoto.dto.FileUploadDTO;
 import com.chuncheon.ganaanphoto.entity.FileUploadEntity;
 import com.chuncheon.ganaanphoto.repository.FileUploadRepository;
@@ -37,7 +37,7 @@ public class FileUploadService {
 
     private static final Logger log = LoggerFactory.getLogger(FileUploadService.class);
     private final FileUploadRepository fileUploadRepository;
-    private final SseController sseController;
+    private final SseService sseService;
 
     /**
      * 업로드 파일 처리(검증)
@@ -108,7 +108,8 @@ public class FileUploadService {
 
                 // SSE 전송
                 String imageUrl = "/rest/photo/" + URLEncoder.encode(savedName, "UTF-8").replaceAll("\\+", "%20");
-                sseController.broadcastNewImage(imageUrl);
+                sseService.broadcastNewImage(imageUrl);
+
             }
         }
     }
@@ -139,7 +140,6 @@ public class FileUploadService {
      */
     public boolean deleteFileByFileName(String savedName) {
         Optional<FileUploadEntity> fileOpt = fileUploadRepository.findBySavedName(savedName);
-
         if (fileOpt.isPresent()) {
             fileUploadRepository.delete(fileOpt.get());
             return true;
@@ -150,7 +150,7 @@ public class FileUploadService {
     }
 
     /**
-     * 여러 파일을 저장된 이름을 기준으로 삭제하는 메서드
+     * 여러 파일을 저장된 이름을 기준으로 데이터 삭제
      * @param savedNames
      * @return
      */
@@ -231,5 +231,33 @@ public class FileUploadService {
     private String getFileExtension(String filename) {
         int dotIndex = filename.lastIndexOf('.');
         return (dotIndex != -1) ? filename.substring(dotIndex + 1) : "";
+    }
+
+    // todo: resource 삭제 구현
+    public void deleteFile(String savedName) throws IOException {
+        String uploadDir = Config.getProperty("file.upload-dir");
+        if (uploadDir == null || uploadDir.isBlank()) {
+            throw new IllegalArgumentException("파일 업로드 경로가 설정되지 않았습니다.");
+        }
+
+        // 1. DB에서 해당 파일 정보 조회
+        Optional<FileUploadEntity> optional = fileUploadRepository.findBySavedName(savedName);
+        if (optional.isEmpty()) {
+            throw new FileNotFoundException("해당 파일이 존재하지 않습니다: " + savedName);
+        }
+
+        FileUploadEntity entity = optional.get();
+
+        // 2. 파일 삭제
+        File file = new File(uploadDir, savedName);
+        if (file.exists()) {
+            if (!file.delete()) {
+                throw new IOException("파일 삭제에 실패했습니다: " + file.getAbsolutePath());
+            }
+        }
+
+        // 4. SSE로 삭제 알림 전송 (프론트에서 해당 이미지 제거하도록)
+        String imageUrl = "/rest/photo/" + URLEncoder.encode(savedName, "UTF-8").replaceAll("\\+", "%20");
+        // sseService.broadcastImageDelete(imageUrl);
     }
 }
