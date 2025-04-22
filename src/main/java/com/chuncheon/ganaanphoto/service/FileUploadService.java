@@ -10,6 +10,7 @@ import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -92,6 +93,7 @@ public class FileUploadService {
                 String extension = getFileExtension(originalName);
                 String savedName = UUID.randomUUID().toString() + "." + extension;
 
+				// file 저장
                 File saveFile = new File(uploadDir, savedName);
                 file.transferTo(saveFile);
 
@@ -101,7 +103,7 @@ public class FileUploadService {
                     .savedName(savedName)
                     .fileExtension(extension)
                     .filePath(uploadDir)
-                    .regDt(null) // DB에서 CURRENT_TIMESTAMP 자동 생성
+                    .regDt(LocalDateTime.now()) // DB에서 CURRENT_TIMESTAMP 자동 생성
                     .build();
 
                 fileUploadRepository.save(entity);
@@ -113,6 +115,40 @@ public class FileUploadService {
             }
         }
     }
+
+    /**
+     * 파일 및 db 삭제
+     * @param savedName
+     * @throws IOException
+     */
+	public void deleteFile(String savedName) throws IOException {
+		String uploadDir = Config.getProperty("file.upload-dir");
+		if (uploadDir == null || uploadDir.isBlank()) {
+			throw new IllegalArgumentException("파일 업로드 경로가 설정되지 않았습니다.");
+		}
+
+		// DB에서 해당 파일 정보 조회
+		Optional<FileUploadEntity> optional = fileUploadRepository.findBySavedName(savedName);
+		if (optional.isEmpty()) {
+			throw new FileNotFoundException("해당 파일이 존재하지 않습니다: " + savedName);
+		}
+
+		// DB 삭제
+		FileUploadEntity entity = optional.get();
+		fileUploadRepository.delete(entity);
+
+		// 파일 삭제
+		File file = new File(uploadDir, savedName);
+		if (file.exists()) {
+			if (!file.delete()) {
+				throw new IOException("파일 삭제에 실패했습니다: " + file.getAbsolutePath());
+			}
+		}
+
+		// 4. SSE로 삭제 알림 전송 (프론트에서 해당 이미지 제거하도록)
+		String imageUrl = "/rest/photo/" + URLEncoder.encode(savedName, "UTF-8").replaceAll("\\+", "%20");
+		sseService.broadcastImageDelete(imageUrl);
+	}
 
     /**
      * 최신순으로 저장된 파일 이름 list 가져오기
@@ -139,14 +175,13 @@ public class FileUploadService {
      * @return
      */
     public boolean deleteFileByFileName(String savedName) {
-        Optional<FileUploadEntity> fileOpt = fileUploadRepository.findBySavedName(savedName);
-        if (fileOpt.isPresent()) {
-            fileUploadRepository.delete(fileOpt.get());
+        try {
+            this.deleteFile(savedName);
             return true;
-        } else {
-            log.error("[삭제 대상 없음] file name : " + savedName);
+        } catch (IOException e) {
+            log.error("[failed to delete file!] " + e.getMessage());
             return false;
-        }
+		}
     }
 
     /**
@@ -155,21 +190,15 @@ public class FileUploadService {
      * @return
      */
     public boolean deleteFilesByFileNames(List<String> savedNames) {
-        try {
-            // 여러 파일을 삭제하는 로직
-            List<FileUploadEntity> filesToDelete = fileUploadRepository.findAllBySavedNameIn(savedNames);
-
-            if (filesToDelete.isEmpty()) {
-                return false;
+        try{
+            for(String savedName : savedNames){
+                this.deleteFile(savedName);
             }
-
-            // 파일 삭제
-            fileUploadRepository.deleteAll(filesToDelete);
             return true;
-        } catch (Exception e) {
-            log.error("[file 삭제실패] " + e.getMessage());
+        } catch (IOException e) {
+			log.error("[failed to delete files!] " + e.getMessage());
             return false;
-        }
+		}
     }
 
     // 모든 파일을 삭제하는 메서드 (위험해서 주석처리함)
@@ -233,31 +262,4 @@ public class FileUploadService {
         return (dotIndex != -1) ? filename.substring(dotIndex + 1) : "";
     }
 
-    // todo: resource 삭제 구현
-    public void deleteFile(String savedName) throws IOException {
-        String uploadDir = Config.getProperty("file.upload-dir");
-        if (uploadDir == null || uploadDir.isBlank()) {
-            throw new IllegalArgumentException("파일 업로드 경로가 설정되지 않았습니다.");
-        }
-
-        // 1. DB에서 해당 파일 정보 조회
-        Optional<FileUploadEntity> optional = fileUploadRepository.findBySavedName(savedName);
-        if (optional.isEmpty()) {
-            throw new FileNotFoundException("해당 파일이 존재하지 않습니다: " + savedName);
-        }
-
-        FileUploadEntity entity = optional.get();
-
-        // 2. 파일 삭제
-        File file = new File(uploadDir, savedName);
-        if (file.exists()) {
-            if (!file.delete()) {
-                throw new IOException("파일 삭제에 실패했습니다: " + file.getAbsolutePath());
-            }
-        }
-
-        // 4. SSE로 삭제 알림 전송 (프론트에서 해당 이미지 제거하도록)
-        String imageUrl = "/rest/photo/" + URLEncoder.encode(savedName, "UTF-8").replaceAll("\\+", "%20");
-        // sseService.broadcastImageDelete(imageUrl);
-    }
 }

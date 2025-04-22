@@ -59,7 +59,7 @@ public class FileRestController {
     public ResponseEntity<Map<String, Object>> deleteSelectedFiles(@RequestBody Map<String, Object> requestBody) {
         // Map에서 fileNames를 List<String>으로 받아옵니다.
         List<String> fileNames = (List<String>) requestBody.get("fileNames");
-        boolean isDeleted = fileUploadService.deleteFilesByFileNames(fileNames);  // DB에서 여러 파일 삭제
+        boolean isDeleted = fileUploadService.deleteFilesByFileNames(fileNames);
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", isDeleted);

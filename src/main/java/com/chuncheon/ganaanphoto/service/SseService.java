@@ -1,7 +1,6 @@
 package com.chuncheon.ganaanphoto.service;
 
 import java.io.IOException;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -45,11 +44,28 @@ public class SseService {
 	}
 
 	/**
+	 * 삭제 이벤트
+	 * @param imageUrl
+	 */
+	public void broadcastImageDelete(String imageUrl) {
+		for (SseEmitter emitter : emitters) {
+			try {
+				emitter.send(SseEmitter.event()
+					.name("imageDelete")
+					.data(imageUrl));
+			} catch (IOException e) {
+				emitter.completeWithError(e);
+				emitters.remove(emitter);
+			}
+		}
+	}
+
+	/**
 	 * 60초마다 핑 전송 스케쥴러 (sse끊킴 방지)
 	 */
 	@Scheduled(fixedRate = 60000)
 	public void sendPingToAllClients() {
-		System.out.println("서버 → 클라이언트 ping 전송: " + LocalDateTime.now());
+		// System.out.println("서버 → 클라이언트 ping 전송: " + LocalDateTime.now());
 		for (SseEmitter emitter : emitters) {
 			try {
 				emitter.send(SseEmitter.event()

@@ -41,7 +41,11 @@
 
 <div class="slide-container">
     <img th:each="fileName : ${fileList}" th:src="@{'/rest/photo/' + ${fileName}}" class="slide" alt="Slide Image">
+    <div class="no-slide-message" id="noSlideMsg" style="display: none; color: white; font-size: 2rem; text-align: center;">
+        ❗ 슬라이드에 표시할 이미지가 없습니다.
+    </div>
 </div>
+
 
 <script>
     const slideContainer = document.querySelector('.slide-container');
@@ -56,6 +60,14 @@
     }
 
     function showSlide(index) {
+        updateSlides(); // 항상 최신 상태 반영
+        const noSlideMsg = document.getElementById('noSlideMsg'); // 빈 슬라이드 메세지 div
+        if (slides.length === 0) {
+            noSlideMsg.style.display = 'block';
+            return;
+        } else {
+            noSlideMsg.style.display = 'none';
+        }
         slides.forEach(slide => slide.classList.remove('visible'));
         currentIndex = (index + slides.length) % slides.length; // index 범위 보정
         setTimeout(() => {
@@ -80,6 +92,8 @@
     // =========================
     function initSSE() {
         const eventSource = new EventSource('/sse/subscribe');
+
+        // 업로드 이벤트 감지
         eventSource.addEventListener('imageUpdate', (event) => {
             const imageUrl = event.data;
             const newImg = document.createElement('img');
@@ -88,11 +102,37 @@
             slideContainer.appendChild(newImg);
             updateSlides();
         });
+
+        // 삭제 이벤트 감지
+        eventSource.addEventListener('imageDelete', (event) => {
+            const deletedUrl = event.data;
+            const images = document.querySelectorAll('.slide');
+            let indexToRemove = -1; // 인덱스 갱신 위한 변수
+
+            images.forEach((img, index) => {
+                if (img.src.includes(decodeURIComponent(deletedUrl))) {
+                    indexToRemove = index;
+                    img.remove();
+                }
+            });
+            // 슬라이드 리스트 다시 로드
+            updateSlides();
+            // 현재 인덱스 조정
+            if (indexToRemove !== -1) {
+                if (indexToRemove <= currentIndex && currentIndex > 0) {
+                    currentIndex--; // 현재 보여지는 이미지가 삭제되었거나 앞 순서일 경우 보정
+                }
+            }
+            // 현재 슬라이드 다시 보여주기
+            showSlide(currentIndex);
+        });
+
         // 연결 유지를 위한 ping 전송
         eventSource.addEventListener("ping", (event) => {
-            const now = new Date();
-            console.log("💓 ping", now.toISOString());
+            // const now = new Date();
+            // console.log("💓 ping", now.toISOString());
         });
+
         // 브라우저에서 연결 끊길 경우 감지
         eventSource.onerror = (e) => {
             const now = new Date();
