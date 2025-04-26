@@ -15,7 +15,10 @@
 
 <form id="uploadForm" enctype="multipart/form-data">
   <div class="mb-3">
-    <label for="fileInput" class="form-label">파일 선택 (최대 10개, 5MB 이하)</label>
+    <label for="fileInput" class="form-label">
+      파일 선택 (최대 <span th:text="${maxFileCount}"></span>개,
+      <span th:text="${maxFileSize}"></span>MB 이하)
+    </label>
     <input type="file" class="form-control" id="fileInput" name="files" accept="image/*" multiple required style="color: transparent;">
     <!-- 파일갯수 여기에 표기 -->
     <small id="fileCount" class="text-muted mt-1 d-block"></small>
@@ -35,7 +38,7 @@
 </div>
 
 
-<script>
+<script th:inline="javascript">
 
   const updatedFiles = []; // 업로드할 파일 리스트
   const uploadForm = document.getElementById("uploadForm");
@@ -44,7 +47,7 @@
   const overlay = document.getElementById("uploadOverlay");
   const uploadResult = document.getElementById("uploadResult");
   const fileCount = document.getElementById("fileCount");
-  const MAX_FILES = 10;
+  const MAX_FILES = [[${maxFileCount}]];
 
   // 🔄 파일 목록 및 input 상태 동기화
   function updateFileList() {

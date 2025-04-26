@@ -23,7 +23,7 @@ public class ViewRestController {
      * @return
      */
     @GetMapping("/rest/photo/{fileName}")
-    public ResponseEntity<Resource> getFile(@PathVariable String fileName) {
+    public ResponseEntity<Resource> getFile(@PathVariable("fileName") String fileName) {
         File file = new File(Config.getProperty("file.upload-dir") + "/" + fileName);
 
         if (file.exists()) {

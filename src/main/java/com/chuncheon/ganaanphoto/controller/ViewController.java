@@ -45,7 +45,7 @@ public class ViewController {
 	 * @return
 	 */
 	@GetMapping("/photo/{fileName}")
-	public ResponseEntity<Resource> getImage(@PathVariable String fileName) {
+	public ResponseEntity<Resource> getImage(@PathVariable("fileName") String fileName) {
 		// DB에 저장된 경로를 기반으로 파일 생성
 		String uploadDir = Config.getProperty("file.upload-dir");
 		File file = new File(uploadDir + fileName);

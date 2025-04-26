@@ -26,6 +26,8 @@ public class FileUploadDTO {
     private String fileExtension;
     private String filePath;
     private LocalDateTime regDt;
+    // 파일 복제 위한 항목
+    private byte[] content;
 
     public FileUploadEntity toEntity() {
         return FileUploadEntity.builder()

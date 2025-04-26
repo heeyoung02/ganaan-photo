@@ -1,16 +1,18 @@
 package com.chuncheon.ganaanphoto.restController;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.chuncheon.ganaanphoto.dto.FileUploadDTO;
 import com.chuncheon.ganaanphoto.service.FileUploadService;
@@ -23,16 +25,23 @@ public class FileRestController {
 
     private final FileUploadService fileUploadService;
 
+
     @PostMapping("/save")
-    public ResponseEntity<String> uploadFiles(@ModelAttribute FileUploadDTO fileUploadDTO) {
-        try {
-            fileUploadService.processUploadFiles(fileUploadDTO.getFiles());
-            return ResponseEntity.ok("파일 업로드 성공!");
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("파일 업로드 실패: " + e.getMessage());
+    public ResponseEntity<String> uploadFiles(@RequestParam("files") List<MultipartFile> files) throws Exception {
+        List<FileUploadDTO> copiedFiles = new ArrayList<>();
+
+        for (MultipartFile file : files) {
+            if (!file.isEmpty()) {
+                copiedFiles.add(FileUploadDTO.builder()
+                    .originalName(file.getOriginalFilename())
+                    .content(file.getBytes())
+                    .build());
+            }
         }
+        // 비동기로 복제된 파일 넘기기(복제하고 넘겨야 temp에서 multipartfile이 사라져서 업로드 실패하는것을 방지할수있다)
+        fileUploadService.processUploadFilesAsync(copiedFiles);
+
+        return ResponseEntity.ok("파일 업로드 성공");
     }
 
     /**
@@ -41,7 +50,7 @@ public class FileRestController {
      * @return
      */
     @DeleteMapping("/rest/photo/deleteFile/{fileName}")
-    public ResponseEntity<Map<String, Object>> deleteFile(@PathVariable String fileName) {
+    public ResponseEntity<Map<String, Object>> deleteFile(@PathVariable("fileName") String fileName) {
         boolean isDeleted = fileUploadService.deleteFileByFileName(fileName);  // DB 삭제
 
         Map<String, Object> response = new HashMap<>();
@@ -57,7 +66,6 @@ public class FileRestController {
      */
     @DeleteMapping("/rest/photo/deleteSelected")
     public ResponseEntity<Map<String, Object>> deleteSelectedFiles(@RequestBody Map<String, Object> requestBody) {
-        // Map에서 fileNames를 List<String>으로 받아옵니다.
         List<String> fileNames = (List<String>) requestBody.get("fileNames");
         boolean isDeleted = fileUploadService.deleteFilesByFileNames(fileNames);
 
