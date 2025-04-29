@@ -8,7 +8,7 @@
   <link rel="stylesheet" th:href="@{/css/style.css}">
   <title>파일 업로드</title>
 </head>
-<body class="container mt-5">
+<body>
 <h2>파일 업로드</h2>
 
 <div class="alert alert-info" th:if="${message}" th:text="${message}"></div>
@@ -48,6 +48,7 @@
   const uploadResult = document.getElementById("uploadResult");
   const fileCount = document.getElementById("fileCount");
   const MAX_FILES = [[${maxFileCount}]];
+  const MAX_FILE_SIZE = [[${maxFileSize}]] * 1024 * 1024; // 5MB = 5 * 1024 * 1024
 
   // 🔄 파일 목록 및 input 상태 동기화
   function updateFileList() {
@@ -102,6 +103,10 @@
 
     newFiles.forEach(file => {
       if (!file.type.startsWith("image/")) return;
+      if (file.size > MAX_FILE_SIZE) {
+        alert(`"${file.name}" 파일은 최대 ${Math.floor(MAX_FILE_SIZE / 1024 / 1024)}MB를 초과할 수 없습니다.`);
+        return;
+      }
       if (updatedFiles.some(f => f.name === file.name && f.size === file.size)) return;
 
       updatedFiles.push(file);
