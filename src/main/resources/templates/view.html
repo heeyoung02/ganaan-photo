@@ -54,6 +54,32 @@
   </div>
 </div>
 
+
+<!-- 페이지네이션 -->
+<nav aria-label="Page navigation example" style="margin-top: 20px;">
+  <ul class="pagination">
+    <!-- Previous 링크 -->
+    <li class="page-item" th:classappend="${currentPage > 1 ? '' : ' disabled'}">
+      <a class="page-link" th:href="@{/view(pageNumber=${currentPage - 1})}" aria-label="Previous">Previous</a>
+    </li>
+
+    <!-- 동적으로 페이지 번호 생성 (파일이 15개 미만일 때도 1페이지만 보이도록) -->
+    <li class="page-item" th:each="i : ${#numbers.sequence(1, totalPages)}" th:classappend="${i == currentPage ? ' active' : ''}"
+        th:if="${totalPages > 0}">
+      <a class="page-link" th:href="@{/view(pageNumber=${i})}" th:text="${i}"></a>
+    </li>
+
+    <!-- Next 링크 -->
+    <li class="page-item" th:classappend="${currentPage < totalPages ? '' : ' disabled'}">
+      <a class="page-link" th:href="@{/view(pageNumber=${currentPage + 1})}" aria-label="Next">Next</a>
+    </li>
+  </ul>
+</nav>
+
+
+
+
+
 <button onclick="startSlideShow()">슬라이드쇼 시작</button>
 
 <script>
