@@ -149,4 +149,9 @@ public class FileUploadService {
         Page<FileUploadEntity> page = fileUploadRepository.findAll(pageable);
         return page.map(FileUploadEntity::fromEntity);  // Entity를 DTO로 변환
     }
+
+    public int getTotalFileCount() {
+        return (int) fileUploadRepository.count();  // fileUploadRepository의 count() 메서드를 호출
+    }
+
 }

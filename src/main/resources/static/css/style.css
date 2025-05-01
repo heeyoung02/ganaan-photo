@@ -35,30 +35,6 @@ button:hover {
     background-color: #0056b3;
 }
 
-/* 반응형 스타일 */
-@media (max-width: 768px) {
-    h1 {
-        font-size: 1.5em;
-    }
-
-    button {
-        font-size: 14px;
-        padding: 8px 16px;
-        width: 90%;
-    }
-}
-
-@media (max-width: 480px) {
-    h1 {
-        font-size: 1.2em;
-    }
-
-    button {
-        font-size: 12px;
-        padding: 6px 12px;
-        width: 100%;
-    }
-}
 
 /* 오버레이 스타일 */
 #uploadOverlay {
@@ -118,6 +94,7 @@ button:hover {
 
 .form-check {
     margin-bottom: 0.5rem;
+
 }
 
 /* 버튼을 카드 하단으로 위치 */
@@ -145,3 +122,54 @@ button:hover {
 }
 
 
+
+/* 반응형 스타일 */
+@media (max-width: 768px) {
+    h1 {
+        font-size: 1.5em;
+    }
+
+    button {
+        font-size: 14px;
+        padding: 8px 16px;
+        width: 90%;
+    }
+
+    /* 전체선택 텍스트만 왼쪽 정렬 */
+    .form-check {
+        text-align: left;
+        margin: 0 !important; /* .form-check의 마진을 없앰 */
+    }
+
+    #selectAllCheckbox {
+        margin: 0 !important;  /* 체크박스의 마진 제거 */
+        padding: 0 !important; /* 체크박스의 패딩 제거 */
+    }
+
+    #totalFileCount,
+    #currentPageInfo,
+    #selectedCount,
+    .form-check.fs-5 {
+        font-size: 0.9rem !important;
+    }
+
+    .delete-button-wrapper {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 10px;
+    }
+}
+
+
+@media (max-width: 480px) {
+    h1 {
+        font-size: 1.2em;
+    }
+
+    button {
+        font-size: 12px;
+        padding: 6px 12px;
+        width: 100%;
+    }
+}

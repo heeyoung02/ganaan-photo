@@ -5,23 +5,38 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
   <link rel="stylesheet" th:href="@{/css/style.css}">
-  <title>😊 춘천가나안교회 [오! 해피데이]</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 20 16'><text x='0' y='14' font-size='14'>😊</text></svg>">
+
+  <title>춘천가나안교회 [오! 해피데이]</title>
 </head>
 <body>
 <h1>업로드된 파일 목록</h1>
 
 <div class="container mb-3">
-  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+  <!-- 전체파일 갯수와 현재 페이지 정보 -->
+  <div class="d-flex file-info-container" style="gap: 20px; margin-top: 10px; margin-bottom: 5px;">
+    <!-- 전체 파일 갯수 표시 -->
+    <span id="totalFileCount" class="fs-5" th:text="'전체 파일: ' + ${totalFileCount} + '개'"></span>
+
+    <!-- 현재 페이지와 마지막 페이지 표시 -->
+    <span id="currentPageInfo" class="fs-5" th:text="'현재 페이지: ' + ${currentPage} + ' / ' + ${totalPages}"></span>
+  </div>
+
+
+  <div class="d-flex flex-wrap flex-md-nowrap justify-content-between align-items-md-center gap-2">
     <div class="form-check fs-5">
-      <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)" style="transform: scale(1.5); margin-right: 8px;"> 전체 선택
+      <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)" style="transform: scale(1.5); margin-right: 8px; padding-left: 0;" > 전체 선택
     </div>
+
+
+
     <!-- 선택삭제 버튼과 선택 개수 표시 -->
     <div class="d-flex align-items-center ms-auto" style="gap: 20px;">
            <span id="selectedCount" class="fs-5">0개 선택됨</span>
     </div>
 
     <!--    선택삭제-->
-    <div>
+    <div  class="delete-button-wrapper">
     <button class="btn btn-danger btn-sm" onclick="deleteSelectedFiles()">선택 삭제</button>
     </div>
 
@@ -30,6 +45,9 @@
      <button class="btn btn-danger btn-sm ms-2" onclick="deleteAllFiles()">전체 삭제</button>
       </div>-->
   </div>
+
+
+
 </div>
 
 <!-- ✅ 3x3 배열로 정렬 -->
@@ -180,6 +198,35 @@
 
     // 체크박스 직접 클릭 시도 반영
     checkboxes.forEach(cb => cb.addEventListener("click", updateSelectedCount));
+  });
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // 전체 파일 수와 페이지 정보 업데이트하는 함수
+    function updateFileInfo(totalFiles, currentPage, totalPages) {
+      document.getElementById("totalFileCount").innerText = `전체 파일: ${totalFiles}개`;
+      document.getElementById("currentPageInfo").innerText = `현재 페이지: ${currentPage} / ${totalPages}`;
+    }
+
+    // 서버에서 파일 목록의 갯수와 페이지 정보를 받아오는 함수
+    function fetchFileInfo(page, size) {
+      fetch(`/fileInfo?page=${page}&size=${size}`)
+              .then(response => response.json())  // 서버 응답을 JSON으로 변환
+              .then(data => {
+                // 응답 데이터를 이용해 파일 정보 업데이트
+                updateFileInfo(data.totalFileCount, data.currentPage, data.totalPages);
+              })
+              .catch(error => {
+                console.error("파일 정보 로드 실패:", error);
+              });
+    }
+
+    // 예시로 처음 페이지는 1, 페이지 당 크기는 10
+    // 실제로는 이 값들이 동적으로 결정되거나 URL의 쿼리 파라미터로 전달될 수 있습니다
+    const page = 1;  // 예시로 첫 번째 페이지를 요청
+    const size = 10; // 한 페이지에 10개의 파일을 표시
+
+    // 서버에서 파일 정보 가져오기
+    fetchFileInfo(page, size);
   });
 
 
