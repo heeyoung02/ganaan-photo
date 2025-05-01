@@ -1,127 +1,34 @@
 package com.chuncheon.ganaanphoto.service;
 
-import java.awt.*;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URLEncoder;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
-import javax.imageio.ImageIO;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.chuncheon.ganaanphoto.config.Config;
 import com.chuncheon.ganaanphoto.dto.FileUploadDTO;
 import com.chuncheon.ganaanphoto.entity.FileUploadEntity;
 import com.chuncheon.ganaanphoto.repository.FileUploadRepository;
-import com.chuncheon.ganaanphoto.utils.InMemoryMultipartFile;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.log4j.Log4j2;
 
 @Service
 @RequiredArgsConstructor
+@Log4j2
 public class FileUploadService {
 
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    private static final Logger log = LoggerFactory.getLogger(FileUploadService.class);
     private final FileUploadRepository fileUploadRepository;
     private final SseService sseService;
-
-    /**
-     * 비동기로 업로드 파일 처리(검증)
-     * @param files
-     * @throws Exception
-     */
-    @Async
-    public void processUploadFilesAsync(List<FileUploadDTO> files)throws Exception {
-        int maxCount = Config.getProperty("file.max-count", 10);
-        long defaultAllowSize = Config.getProperty("file.default-allow-size", 1048576);
-        long maxSize = Config.getProperty("file.max-size", 5) * defaultAllowSize;
-
-        if (files.size() > maxCount) {
-            throw new IllegalArgumentException("최대 " + maxCount + "개의 파일만 업로드 가능합니다.");
-        }
-
-        for (FileUploadDTO file : files) {
-            String originalName = file.getOriginalName();
-            String extension = getFileExtension(originalName);
-
-            if (!Config.checkAllowImg(extension)) {
-                throw new IllegalArgumentException("허용되지 않는 파일 형식입니다: " + extension);
-            }
-
-            // 리사이즈 및 사이즈 체크
-            MultipartFile resizedImage = resizeImage(file.getContent(), originalName, 2560);  // byte[]로 리사이즈 수정 필요
-            if (resizedImage.getSize() > maxSize) {
-                throw new IllegalArgumentException("파일 크기는 " + maxSize / 1048576 + "MB를 초과할 수 없습니다.");
-            }
-
-            saveFile(resizedImage);
-        }
-    }
-
-
-    /**
-     * 파일 스트리밍 형식으로 스토리지 저장 및 DB 저장
-     * @param file
-     */
-    public void saveFile(MultipartFile file) {
-        try {
-            String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
-            String fileExtension = getFileExtension(originalFilename);
-            String newFileName = UUID.randomUUID() + "." + fileExtension;
-
-            // 경로 조합
-            Path uploadPath = Path.of(uploadDir);
-            if (!Files.exists(uploadPath)) {
-                Files.createDirectories(uploadPath);
-            }
-
-            // 스트리밍 방식으로 바로 저장
-            Path targetPath = uploadPath.resolve(newFileName);
-            try (var inputStream = file.getInputStream()) {
-                Files.copy(inputStream, targetPath, StandardCopyOption.REPLACE_EXISTING);
-            }
-
-            // DB에 저장
-            FileUploadEntity entity = FileUploadEntity.builder()
-                .originalName(originalFilename)
-                .savedName(newFileName)
-                .fileExtension(fileExtension)
-                .filePath(uploadDir)
-                .regDt(LocalDateTime.now())
-                .build();
-
-            fileUploadRepository.save(entity);
-
-            // SSE 전송
-            String imageUrl =
-                "/rest/photo/" + URLEncoder.encode(newFileName, "UTF-8").replaceAll("\\+", "%20");
-            sseService.broadcastNewImage(imageUrl);
-        } catch (IOException e) {
-            log.error("파일 저장 실패: {}", file.getOriginalFilename(), e);
-        }
-    }
 
     /**
      * 파일 및 db 삭제
@@ -223,56 +130,13 @@ public class FileUploadService {
     //        }
     //    }
 
-    /**
-     * 이미지 리사이징
-     * @param originalBytes
-     * @param originalFilename
-     * @param targetWidth
-     * @return
-     * @throws IOException
-     */
-    public MultipartFile resizeImage(byte[] originalBytes, String originalFilename, int targetWidth) throws IOException {
-        try (InputStream input = new ByteArrayInputStream(originalBytes)) {
-            BufferedImage originalImage = ImageIO.read(input);
-
-            // 기존 이미지 크기 가져오기
-            int width = originalImage.getWidth();
-            int height = originalImage.getHeight();
-
-            // 리사이징할 크기 계산
-            double scale = (double) targetWidth / width;
-            int newWidth = targetWidth;
-            int newHeight = (int) (height * scale);
-
-            // 새 BufferedImage 생성
-            BufferedImage resizedImage = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_RGB);
-            Graphics2D g2d = resizedImage.createGraphics();
-            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-            g2d.drawImage(originalImage, 0, 0, newWidth, newHeight, null);
-            g2d.dispose();
-
-            // 압축하여 ByteArrayOutputStream에 저장
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(resizedImage, "jpg", baos);
-            byte[] compressedBytes = baos.toByteArray();
-
-            // MultipartFile로 변환
-            return new InMemoryMultipartFile(
-                "file",                   // name
-                originalFilename,         // originalFilename
-                "image/jpeg",              // contentType
-                compressedBytes            // content
-            );
-        }
-    }
-
 
     /**
      * 확장자 가져오기
      * @param filename
      * @return
      */
-    private String getFileExtension(String filename) {
+    public String getFileExtension(String filename) {
         int dotIndex = filename.lastIndexOf('.');
         return (dotIndex != -1) ? filename.substring(dotIndex + 1) : "";
     }

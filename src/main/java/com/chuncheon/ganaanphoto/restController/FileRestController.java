@@ -1,10 +1,13 @@
 package com.chuncheon.ganaanphoto.restController;
 
-import java.util.ArrayList;
+import java.io.BufferedInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,8 +17,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.chuncheon.ganaanphoto.dto.FileUploadDTO;
+import com.chuncheon.ganaanphoto.dto.FileUploadTask;
 import com.chuncheon.ganaanphoto.service.FileUploadService;
+import com.chuncheon.ganaanphoto.service.UploadQueueService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,24 +28,26 @@ import lombok.RequiredArgsConstructor;
 public class FileRestController {
 
     private final FileUploadService fileUploadService;
+    private final UploadQueueService uploadQueueService;
 
-
+    /**
+     * 파일 업로드
+     * @param files
+     * @return
+     */
     @PostMapping("/save")
-    public ResponseEntity<String> uploadFiles(@RequestParam("files") List<MultipartFile> files) throws Exception {
-        List<FileUploadDTO> copiedFiles = new ArrayList<>();
-
+    public ResponseEntity<String> uploadFiles(@RequestParam("files") List<MultipartFile> files) {
         for (MultipartFile file : files) {
-            if (!file.isEmpty()) {
-                copiedFiles.add(FileUploadDTO.builder()
-                    .originalName(file.getOriginalFilename())
-                    .content(file.getBytes())
-                    .build());
+            try {
+                InputStream copiedInput = new BufferedInputStream(file.getInputStream()); // 스트리밍
+                // 큐에 등록하여 순차적으로 저장 처리
+                uploadQueueService.enqueueFile(new FileUploadTask(file.getOriginalFilename(), copiedInput));
+            } catch (IOException e) {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("파일 처리 실패: " + file.getOriginalFilename());
             }
         }
-        // 비동기로 복제된 파일 넘기기(복제하고 넘겨야 temp에서 multipartfile이 사라져서 업로드 실패하는것을 방지할수있다)
-        fileUploadService.processUploadFilesAsync(copiedFiles);
-
-        return ResponseEntity.ok("파일 업로드 성공");
+        return ResponseEntity.ok("업로드 요청이 접수되었습니다.");
     }
 
     /**
