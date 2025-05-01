@@ -58,27 +58,4 @@ public class ViewRestController {
         }
     }
 
-    @GetMapping("/fileInfo")
-    public ResponseEntity<Map<String, Object>> getFileInfo(
-            @RequestParam int page,  // 요청 페이지 번호
-            @RequestParam int size   // 페이지 당 파일 수
-    ) {
-        // FileUploadService 인스턴스를 주입받아 사용
-        int totalFileCount = fileUploadService.getTotalFileCount();  // fileUploadService를 통해 호출
-        int totalPages = (int) Math.ceil((double) totalFileCount / size);
-
-        // 현재 페이지가 totalPages보다 클 경우 최대 페이지 번호로 설정
-        if (page > totalPages) {
-            page = totalPages;
-        }
-
-        // 응답 객체 생성
-        Map<String, Object> response = new HashMap<>();
-        response.put("totalFileCount", totalFileCount);
-        response.put("currentPage", page);
-        response.put("totalPages", totalPages);
-
-        return ResponseEntity.ok(response);
-    }
-
 }

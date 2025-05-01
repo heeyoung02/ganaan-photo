@@ -37,10 +37,19 @@ public class FileRestController {
      */
     @PostMapping("/save")
     public ResponseEntity<String> uploadFiles(@RequestParam("files") List<MultipartFile> files) {
+
+        int currentSize = uploadQueueService.getCurrentQueueSize();
+        int maxCapacity = uploadQueueService.getMaxQueueCapacity();
+
+        if (currentSize + files.size() > maxCapacity) {
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body("업로드 요청이 너무 많습니다. 잠시 후 다시 시도해주세요.");
+        }
+
         for (MultipartFile file : files) {
             try {
                 InputStream copiedInput = new BufferedInputStream(file.getInputStream()); // 스트리밍
-                // 큐에 등록하여 순차적으로 저장 처리
+                // // 큐에 등록하여 순차적으로 저장 처리
                 uploadQueueService.enqueueFile(new FileUploadTask(file.getOriginalFilename(), copiedInput));
             } catch (IOException e) {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

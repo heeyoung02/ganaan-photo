@@ -45,27 +45,43 @@ public class UploadQueueService {
 
 	@Value("${file.upload-dir}")
 	private String uploadDir;
-	private final BlockingQueue<FileUploadTask> uploadQueue = new LinkedBlockingQueue<>(100);
-	private final ExecutorService executor = Executors.newSingleThreadExecutor(); // 순차처리용
+
+	private static final int MAX_QUEUE_SIZE = 100; // 최대 큐 사이즈
+	private final BlockingQueue<FileUploadTask> uploadQueue = new LinkedBlockingQueue<>(MAX_QUEUE_SIZE);
+
+	// private final ExecutorService executor = Executors.newSingleThreadExecutor(); // 순차처리용
+	private static final int WORKER_THREAD_COUNT = 2; // 처리 스레드 수
+	private final ExecutorService executor = Executors.newFixedThreadPool(WORKER_THREAD_COUNT);
+
 	private final FileUploadRepository fileUploadRepository;
 	private final SseService sseService;
 	private final FileUploadService fileUploadService;
 
-
+	/**
+	 * 업로드 워커 실행
+	 */
 	@PostConstruct
 	public void startWorker() {
-		executor.submit(() -> {
-			while (true) {
-				try {
-					FileUploadTask task = uploadQueue.take();
-					handleFile(task); // 실제 저장
-				} catch (Exception e) {
-					log.error("[TASK ERROR] 업로드 처리 중 예외 발생",e);
+		for (int i = 0; i < WORKER_THREAD_COUNT; i++) {
+			final int workerId = i + 1;
+			executor.submit(() -> {
+				log.info("📦 업로드 워커 #{} 시작", workerId);
+				while (true) {
+					try {
+						FileUploadTask task = uploadQueue.take();
+						handleFile(task);
+					} catch (Exception e) {
+						log.error("[TASK ERROR] 워커 #{} 처리 중 예외 발생", workerId, e);
+					}
 				}
-			}
-		});
+			});
+		}
 	}
 
+	/**
+	 * 큐에 파일 넣기
+	 * @param task
+	 */
 	public void enqueueFile(FileUploadTask task) {
 		if (!uploadQueue.offer(task)) {
 			log.warn("[QUEUE] 업로드 대기열이 가득 참: {}", task.originalName());
@@ -73,6 +89,11 @@ public class UploadQueueService {
 		}
 	}
 
+	/**
+	 * worker가 실행할 task (파일저장 + DB저장 + SSE전송)
+	 * @param task
+	 * @throws IOException
+	 */
 	private void handleFile(FileUploadTask task) throws IOException {
 
 		// 파일명 처리
@@ -109,8 +130,9 @@ public class UploadQueueService {
 					throw new IOException("이미지 파일이 아님: " + originalFilename);
 				}
 				BufferedImage orientedImage = applyExifOrientation(exifIn, image); // 회전정보 적용하여 저장
-				BufferedImage resized = resize(orientedImage, 2560);
-				ImageIO.write(resized, ext, out);
+				// BufferedImage resized = resize(orientedImage, 2560);
+				// ImageIO.write(resized, ext, out);
+				ImageIO.write(orientedImage, ext, out);
 			}
 		}
 
@@ -135,6 +157,12 @@ public class UploadQueueService {
 
 	}
 
+	/**
+	 * 이미지 리사이즈
+	 * @param original
+	 * @param targetWidth
+	 * @return
+	 */
 	private BufferedImage resize(BufferedImage original, int targetWidth) {
 		int height = (int) (original.getHeight() * (targetWidth / (double) original.getWidth()));
 		BufferedImage resized = new BufferedImage(targetWidth, height, BufferedImage.TYPE_INT_RGB);
@@ -175,4 +203,16 @@ public class UploadQueueService {
 		op.filter(image, rotated);
 		return rotated;
 	}
+
+	// 최대 큐 사이즈 반환
+	public int getMaxQueueCapacity() {
+		return MAX_QUEUE_SIZE;
+	}
+
+	// 현재 큐 사이즈 반환
+	public int getCurrentQueueSize() {
+		return uploadQueue.size();
+	}
+
+
 }

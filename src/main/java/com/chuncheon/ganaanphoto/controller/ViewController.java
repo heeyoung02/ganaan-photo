@@ -37,6 +37,7 @@ public class ViewController {
 		model.addAttribute("fileUploadDTOList", fileUploadPage.getContent());
 		model.addAttribute("currentPage", pageNumber);
 		model.addAttribute("totalPages", fileUploadPage.getTotalPages());
+		model.addAttribute("totalCount", fileUploadService.getTotalFileCount());
 		return "view";  // view.html 렌더링
 	}
 
