@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,7 @@ import com.chuncheon.ganaanphoto.dto.FileUploadDTO;
 import com.chuncheon.ganaanphoto.service.FileUploadService;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Controller
 @RequiredArgsConstructor
@@ -25,10 +27,22 @@ public class ViewController {
 
 	private final FileUploadService fileUploadService;  // 파일 업로드 서비스
 
+	//페이지네이션이 없는 /view
+//	@GetMapping("/view")
+//	public String showViewPage(Model model) {
+//		List<FileUploadDTO> fileUploadDTOList = fileUploadService.getUploadFileDTOFromDB();
+//		model.addAttribute("fileUploadDTOList", fileUploadDTOList);
+//		return "view";  // view.html 렌더링
+//	}
+
+	//페이지네이션이 추가된 /view
 	@GetMapping("/view")
-	public String showViewPage(Model model) {
-		List<FileUploadDTO> fileUploadDTOList = fileUploadService.getUploadFileDTOFromDB();
-		model.addAttribute("fileUploadDTOList", fileUploadDTOList);
+	public String showViewPage(@RequestParam(defaultValue = "1") int pageNumber,
+							   @RequestParam(defaultValue = "15") int pageSize, Model model) {
+		Page<FileUploadDTO> fileUploadPage = fileUploadService.getPaginatedFiles(pageNumber, pageSize);
+		model.addAttribute("fileUploadDTOList", fileUploadPage.getContent());
+		model.addAttribute("currentPage", pageNumber);
+		model.addAttribute("totalPages", fileUploadPage.getTotalPages());
 		return "view";  // view.html 렌더링
 	}
 
@@ -62,4 +76,18 @@ public class ViewController {
 		}
 	}
 
+	/**
+	 * 파일 목록을 페이지네이션하여 가져옵니다.
+	 * @param pageNumber 페이지 번호 (기본값 1)
+	 * @param pageSize 페이지 크기 (기본값 10)
+	 * @return 페이지네이션된 파일 목록
+	 */
+	@GetMapping("/rest/photo/files")
+	public ResponseEntity<Page<FileUploadDTO>> getFiles(
+			@RequestParam(defaultValue = "1") int pageNumber,
+			@RequestParam(defaultValue = "10") int pageSize) {
+
+		Page<FileUploadDTO> filePage = fileUploadService.getPaginatedFiles(pageNumber, pageSize);
+		return ResponseEntity.ok(filePage);
+	}
 }

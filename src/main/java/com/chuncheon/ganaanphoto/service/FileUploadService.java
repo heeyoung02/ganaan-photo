@@ -9,6 +9,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.chuncheon.ganaanphoto.config.Config;
@@ -134,11 +137,16 @@ public class FileUploadService {
     /**
      * 확장자 가져오기
      * @param filename
-     * @return
+     * @returnd
      */
     public String getFileExtension(String filename) {
         int dotIndex = filename.lastIndexOf('.');
         return (dotIndex != -1) ? filename.substring(dotIndex + 1) : "";
     }
 
+    public Page<FileUploadDTO> getPaginatedFiles(int pageNumber, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNumber - 1, pageSize);  // pageNumber는 1부터 시작하므로 -1 해줌
+        Page<FileUploadEntity> page = fileUploadRepository.findAll(pageable);
+        return page.map(FileUploadEntity::fromEntity);  // Entity를 DTO로 변환
+    }
 }
