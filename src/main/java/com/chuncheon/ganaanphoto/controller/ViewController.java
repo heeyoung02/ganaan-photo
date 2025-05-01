@@ -27,18 +27,10 @@ public class ViewController {
 
 	private final FileUploadService fileUploadService;  // 파일 업로드 서비스
 
-	//페이지네이션이 없는 /view
-//	@GetMapping("/view")
-//	public String showViewPage(Model model) {
-//		List<FileUploadDTO> fileUploadDTOList = fileUploadService.getUploadFileDTOFromDB();
-//		model.addAttribute("fileUploadDTOList", fileUploadDTOList);
-//		return "view";  // view.html 렌더링
-//	}
-
 	//페이지네이션이 추가된 /view
 	@GetMapping("/view")
-	public String showViewPage(@RequestParam(defaultValue = "1") int pageNumber,
-							   @RequestParam(defaultValue = "15") int pageSize, Model model) {
+	public String showViewPage(@RequestParam(value = "pageNumber", defaultValue = "1") int pageNumber,
+							   @RequestParam(value = "pageSize", defaultValue = "15") int pageSize, Model model) {
 		Page<FileUploadDTO> fileUploadPage = fileUploadService.getPaginatedFiles(pageNumber, pageSize);
 		model.addAttribute("fileUploadDTOList", fileUploadPage.getContent());
 		model.addAttribute("currentPage", pageNumber);

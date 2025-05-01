@@ -33,7 +33,7 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
-
+	implementation 'com.drewnoakes:metadata-extractor:2.18.0'
 }
 
 tasks.named('test') {
