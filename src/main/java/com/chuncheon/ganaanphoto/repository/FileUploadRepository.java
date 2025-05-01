@@ -19,4 +19,5 @@ public interface FileUploadRepository extends JpaRepository<FileUploadEntity, Lo
 
     // 페이지네이션을 위한 메서드
     Page<FileUploadEntity> findAll(Pageable pageable);
+    long count();
 }
