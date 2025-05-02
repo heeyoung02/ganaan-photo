@@ -125,15 +125,12 @@ button:hover {
 
 /* 반응형 스타일 */
 @media (max-width: 768px) {
-    h1 {
-        font-size: 1.5em;
-    }
 
-    button {
-        font-size: 14px;
-        padding: 8px 16px;
-        width: 90%;
-    }
+    /*button {*/
+    /*    font-size: 14px;*/
+    /*    padding: 8px 16px;*/
+    /*    width: 90%;*/
+    /*}*/
 
     /* 전체선택 텍스트만 왼쪽 정렬 */
     .form-check {
@@ -153,23 +150,20 @@ button:hover {
         font-size: 0.9rem !important;
     }
 
-    .delete-button-wrapper {
-        width: 100%;
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 10px;
-    }
+    /*.delete-button-wrapper {*/
+    /*    width: 100%;*/
+    /*    display: flex;*/
+    /*    justify-content: flex-end;*/
+    /*    margin-top: 10px;*/
+    /*}*/
 }
 
 
 @media (max-width: 480px) {
-    h1 {
-        font-size: 1.2em;
-    }
 
-    button {
-        font-size: 12px;
-        padding: 6px 12px;
-        width: 100%;
-    }
+    /*button {*/
+    /*    font-size: 12px;*/
+    /*    padding: 6px 12px;*/
+    /*    width: 100%;*/
+    /*}*/
 }

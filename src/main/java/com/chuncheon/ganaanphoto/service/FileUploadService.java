@@ -141,7 +141,7 @@ public class FileUploadService {
      */
     public String getFileExtension(String filename) {
         int dotIndex = filename.lastIndexOf('.');
-        return (dotIndex != -1) ? filename.substring(dotIndex + 1) : "";
+        return (dotIndex != -1) ? filename.substring(dotIndex + 1).toLowerCase() : "";
     }
 
     public Page<FileUploadDTO> getPaginatedFiles(int pageNumber, int pageSize) {

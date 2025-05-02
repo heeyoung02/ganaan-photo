@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.chuncheon.ganaanphoto.config.Config;
 import com.chuncheon.ganaanphoto.dto.FileUploadTask;
 import com.chuncheon.ganaanphoto.service.FileUploadService;
 import com.chuncheon.ganaanphoto.service.UploadQueueService;
@@ -48,14 +49,17 @@ public class FileRestController {
 
         for (MultipartFile file : files) {
             try {
+                if (!Config.checkAllowImg(fileUploadService.getFileExtension(file.getOriginalFilename()))) {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("허용되지 않는 파일 형식입니다. : " + file.getOriginalFilename());
+                }
                 InputStream copiedInput = new BufferedInputStream(file.getInputStream()); // 스트리밍
                 // // 큐에 등록하여 순차적으로 저장 처리
                 uploadQueueService.enqueueFile(new FileUploadTask(file.getOriginalFilename(), copiedInput));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("파일 처리 실패: " + file.getOriginalFilename());
             }
-        }
+		}
         return ResponseEntity.ok("업로드 요청이 접수되었습니다.");
     }
 
