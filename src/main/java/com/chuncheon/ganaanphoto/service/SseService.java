@@ -1,6 +1,7 @@
 package com.chuncheon.ganaanphoto.service;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -65,17 +66,22 @@ public class SseService {
 	 */
 	@Scheduled(fixedRate = 60000)
 	public void sendPingToAllClients() {
-		// System.out.println("서버 → 클라이언트 ping 전송: " + LocalDateTime.now());
+		List<SseEmitter> deadEmitters = new ArrayList<>();
+
 		for (SseEmitter emitter : emitters) {
 			try {
 				emitter.send(SseEmitter.event()
 					.name("ping")
 					.data("keep-alive"));
-			} catch (IOException e) {
+			} catch (IllegalStateException | IOException e) {
+				// 이미 완료된 emitter이거나 연결이 끊긴 경우
 				emitter.completeWithError(e);
-				emitters.remove(emitter);
+				deadEmitters.add(emitter);
 			}
 		}
+
+		// 일괄 제거 (Iterator 충돌 방지)
+		emitters.removeAll(deadEmitters);
 	}
 
 }

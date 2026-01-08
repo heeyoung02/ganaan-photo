@@ -190,17 +190,46 @@ public class UploadQueueService {
 
 	// Orientation 값에 따라 이미지 회전, 변환 적용
 	private BufferedImage transformImageByOrientation(BufferedImage image, int orientation) {
+		int w = image.getWidth();
+		int h = image.getHeight();
+
 		AffineTransform tx = new AffineTransform();
+		int newW = w;
+		int newH = h;
+
 		switch (orientation) {
-			case 6 -> tx.rotate(Math.toRadians(90), image.getWidth() / 2.0, image.getHeight() / 2.0);
-			case 3 -> tx.rotate(Math.toRadians(180), image.getWidth() / 2.0, image.getHeight() / 2.0);
-			case 8 -> tx.rotate(Math.toRadians(270), image.getWidth() / 2.0, image.getHeight() / 2.0);
-			default -> { return image; }
+			case 6 -> { // 90°
+				tx.translate(h, 0);
+				tx.rotate(Math.toRadians(90));
+				newW = h;
+				newH = w;
+			}
+			case 3 -> { // 180°
+				tx.translate(w, h);
+				tx.rotate(Math.toRadians(180));
+			}
+			case 8 -> { // 270°
+				tx.translate(0, w);
+				tx.rotate(Math.toRadians(270));
+				newW = h;
+				newH = w;
+			}
+			default -> {
+				return image;
+			}
 		}
 
-		AffineTransformOp op = new AffineTransformOp(tx, AffineTransformOp.TYPE_BICUBIC);
-		BufferedImage rotated = new BufferedImage(image.getWidth(), image.getHeight(), image.getType());
-		op.filter(image, rotated);
+		BufferedImage rotated = new BufferedImage(
+			newW,
+			newH,
+			BufferedImage.TYPE_INT_RGB
+		);
+
+		Graphics2D g = rotated.createGraphics();
+		g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+		g.drawImage(image, tx, null);
+		g.dispose();
+
 		return rotated;
 	}
 
